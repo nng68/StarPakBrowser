@@ -4,7 +4,11 @@ This tool is built on top of @blixt's awesome work:[py-starbound](https://github
 * Download and Install the release for the current version of StarPakBrowser.
 # Usage:
 * Open the pak file and view or open those compressed file without unpacking.
-![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/openpak.png)
+![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/openpak.png)  
+Or you can open the pak file directly by setting the way the pak file is opened.
+![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/pakopen1.png)
+![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/pakopen2.png)  
+Select this app from folder,after that you can double-click the pak file to open it.
 * Unpack selected or all of the compressed files to the specified folder.  
 Double click the item to temporarily open the file  
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/unpackandopenfile.png)
