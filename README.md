@@ -6,7 +6,7 @@ This tool is built on top of @blixt's awesome work:https://github.com/blixt/py-s
 * Open the pak file and view or open those compressed file without unpacking.
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/openpak.png)
 * Unpack selected or all of the pak files to the specified folder.  
+Double click the item to temporarily open the file
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/unpackandopenfile.png)
-* Double click the item to temporarily open the file
 * Pack a folder to a starbound pak file.  
-* If the program does not find the starbound installation path, it will prompt you to choose the installation path.
+If the program does not find the starbound installation path, it will prompt you to choose the installation path.
