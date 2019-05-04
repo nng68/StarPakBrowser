@@ -5,7 +5,7 @@ This tool is built on top of @blixt's awesome work:[py-starbound](https://github
 # Usage:
 * Open the pak file and view or open those compressed file without unpacking.
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/openpak.png)
-* Unpack selected or all of the pak files to the specified folder.
+* Unpack selected or all of the pak files to the specified folder.  
 Double click the item to temporarily open the file
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/unpackandopenfile.png)
 * Pack a folder to a starbound pak file.  
