@@ -1,5 +1,5 @@
 # StarPakBrowser
-This tool is built on top of @blixt's awesome work:https://github.com/blixt/py-starbound, you can use it to view, pack and unpack the starbound package files.
+This tool is built on top of @blixt's awesome work:https://github.com/blixt/py-starbound, you can use it to view, pack and unpack the starbound pak files.
 # Installation
 * Download and Install the release for the current version of StarPakBrowser.
 # Features:
