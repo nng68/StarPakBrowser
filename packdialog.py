@@ -1,5 +1,4 @@
 import wx
-import os
 class PackDialog(wx.Dialog):
     def __init__(self, *args, **kw):
         super(PackDialog, self).__init__(*args, **kw)

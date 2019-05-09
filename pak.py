@@ -3,7 +3,7 @@ import mmap
 import json
 import os
 
-class Pak():
+class PakUtil():
     def __init__(self,pakpath):
         self.pakpath = pakpath
         self.pakdir = os.path.dirname(pakpath)
@@ -41,6 +41,21 @@ class Pak():
             data = package.get(path)
             return data
 
+    def SetFileData(self,baseFileList,type='picture'):
+        with open(self.pakpath, 'rb') as fh:
+            for baseFile in baseFileList:
+                if baseFile.type in ['png', 'jpeg', 'jpg', 'gif', 'bmp']:
+                    path = baseFile.dir + baseFile.name
+                    if path == '/_metadata':
+                        data = self._metadata
+                    else:
+                        mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+                        package = starbound.SBAsset6(mm)
+                        package.read_index()
+                        data = package.get(path)
+                    baseFile.data = data
+        return baseFileList
+
     def extractFiles(self,filelist,pathto):
         package_path = self.pakpath
         base = pathto
@@ -53,7 +68,6 @@ class Pak():
             for path in filelist:
                 self.extractfile = path
                 self.extractpercent = round((num_files / total_num_files)*100,2)
-                print(self.extractfile,self.extractpercent)
                 dest_path = base + path
                 dir_path = os.path.dirname(dest_path)
                 if not os.path.exists(dir_path):

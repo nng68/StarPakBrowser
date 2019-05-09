@@ -20,15 +20,15 @@ class PakListCtrl(wx.ListCtrl):
         self.InsertColumn(1, 'Type')
         self.InsertColumn(2, 'Size')
 
-        self.SetColumnWidth(0, 200)
-        self.SetColumnWidth(1, 100)
-        self.SetColumnWidth(2, 100)
+        self.SetColumnWidth(0, 250)
+        self.SetColumnWidth(1, 120)
+        self.SetColumnWidth(2, 120)
 
         self.il = wx.ImageList(24, 24)
         for i in self.images:
             self.il.Add(wx.Bitmap(i))
 
-        self.SetImageList(self.il, wx.IMAGE_LIST_SMALL)
+        self.AssignImageList(self.il, wx.IMAGE_LIST_SMALL)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnItemRightClick)
         self.UpdateList()

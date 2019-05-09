@@ -2,15 +2,16 @@
 import wx
 import os
 import re
-import random
+import shutil
 import json
 import threading
 import util
 import time
+import requests
 from startpanel import StartPanel
 from unpackdialog import UnPackDialog
 from packdialog import PackDialog
-from pak import Pak
+from pak import PakUtil
 from unpackpanel import UnpackPanel
 from basefile import BaseFile
 from filedrop import FileDrop
@@ -18,11 +19,15 @@ from wx.adv import AboutBox,AboutDialogInfo
 
 class PakBrowser(wx.Frame):
     def __init__(self,parent,id,title):
-        wx.Frame.__init__(self, parent, id, title, size=(500, 500))
+        wx.Frame.__init__(self, parent, id, title, size=(720, 600))
+        threading.Thread(target=self.UpdateApp).start()
+
         self.dir = '/'
         self.SetIcon(wx.Icon(util.GetResourcePath('image/icon_128.ico')))
 
         self.stardir = None
+        self.viewModel = 'ListView'
+        self.pak = None
         try:
             self.stardir = util.GetInstallSoftWarePath('Starbound')
             with open(util.GetResourcePath('setting'),'r') as fr:
@@ -32,18 +37,23 @@ class PakBrowser(wx.Frame):
             pass
 
         self.CreateMenuBar()
+        self.CreateTlBar()
         dt = FileDrop(self)
         self.SetDropTarget(dt)
 
         self.rootpanel = StartPanel(self, -1)
+        self.sizer = wx.BoxSizer(wx.VERTICAL)
+        self.sizer.Add(self.rootpanel, 1, wx.EXPAND)
+        self.SetSizer(self.sizer)
 
         path = util.GetOpenFilePath()
         if path != None:
-            pak = Pak(path)
+            pak = PakUtil(path)
             self.GotoUnpackPanel(pak)
 
 
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated)
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnItemRightClick)
         self.Bind(wx.EVT_BUTTON, self.OnButtonClicked)
         self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
         self.Center()
@@ -56,28 +66,30 @@ class PakBrowser(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             filename = os.path.join(dlg.GetDirectory(),dlg.GetFilename())
             try:
-                pak = Pak(filename)
+                pak = PakUtil(filename)
             except Exception as e:
                 dial = wx.MessageDialog(None, 'File Open Failed', 'Info', wx.OK)
                 dial.ShowModal()
                 dial.Destroy()
                 raise
+            self.SetTitle(filename+' - StarPakBrowser')
             self.GotoUnpackPanel(pak)
         dlg.Destroy()
 
     def OnDragFile(self,filenames):
         filename = filenames[0]
         try:
-            pak = Pak(filename)
+            pak = PakUtil(filename)
         except Exception as e:
             dial = wx.MessageDialog(None, 'File Open Failed', 'Info', wx.OK)
             dial.ShowModal()
             dial.Destroy()
             raise
+        self.SetTitle(filename + ' - StarPakBrowser')
         self.GotoUnpackPanel(pak)
 
 
-    def OnOpenDir(self,evt):
+    def OnPack(self,evt):
         if self.stardir == None:
             dial = wx.MessageDialog(None, 'Please Setting Your Starbound Folder First', 'Info', wx.OK)
             dial.ShowModal()
@@ -114,16 +126,14 @@ class PakBrowser(wx.Frame):
     def GotoUnpackPanel(self,pak):
         self.pak = pak
         self.rootpanel.Destroy()
-        self.rootpanel = UnpackPanel(self, -1)
+        self.rootpanel = UnpackPanel(self, -1,self.viewModel)
+        self.sizer.Add(self.rootpanel, 1, wx.EXPAND)
+        self.Layout()
         self.dir = '/'
         self.rootpanel.addressCb.SetLabel(self.dir)
         self.rootpanel.addressCb.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
         self.rootpanel.pakListCtrl.SetBaseFileList(self.getFilesFromDir(self.dir))
-        self.unpackselecteditem.Enable(True)
-        self.unpackallitem.Enable(True)
-        offset = random.randint(5, 10)
-        self.SetSize(500+offset, 500 + offset)
-
+        self.toolbar.EnableTool(self.toolunpack.GetId(), True)
 
     def OnButtonClicked(self,evt):
         bt = evt.GetEventObject()
@@ -314,11 +324,20 @@ class PakBrowser(wx.Frame):
         else:
             filename = baseFile.dir + baseFile.name
             data = self.pak.getFile(filename)
-            file = os.path.join(util.GetResourcePath('temp/'),baseFile.name)
+            tempdir = os.path.join(util.GetResourcePath('temp'),self.pak.pakname[:-4],baseFile.dir[1:])
+            if not os.path.exists(tempdir):
+                os.makedirs(tempdir)
+            file = os.path.join(tempdir,baseFile.name)
             with open(file,'wb') as fw:
                 fw.write(data)
 
             os.startfile(os.path.abspath(file))
+
+    def OnItemRightClick(self,evt):
+        rightclickMenu = wx.Menu()
+        unpackselecteditem = rightclickMenu.Append(-1, 'Unpack Selected', 'Unpack Selected Items', kind=wx.ITEM_NORMAL)
+        rightclickMenu.Bind(wx.EVT_MENU, self.OnUnpackSelected,unpackselecteditem)
+        self.PopupMenu(rightclickMenu)
 
     def OnSetStarbound(self,evt):
         stardlg = wx.DirDialog(self, "Please Choose Your Starbound Directory")
@@ -332,6 +351,34 @@ class PakBrowser(wx.Frame):
                 dial.ShowModal()
                 dial.Destroy()
         stardlg.Destroy()
+
+    def ToggleListView(self,evt):
+        self.viewMenu.Check(self.listviewitem.GetId(), True)
+        self.viewMenu.Check(self.iconviewitem.GetId(), False)
+        self.viewModel = 'ListView'
+        if self.pak != None:
+            self.rootpanel.Destroy()
+            self.rootpanel = UnpackPanel(self, -1, self.viewModel)
+            self.sizer.Add(self.rootpanel, 1, wx.EXPAND)
+            self.Layout()
+            self.rootpanel.addressCb.SetLabel(self.dir)
+            self.rootpanel.addressCb.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
+            self.rootpanel.pakListCtrl.SetBaseFileList(self.getFilesFromDir(self.dir))
+            self.toolbar.EnableTool(self.toolunpack.GetId(), True)
+
+    def ToggleIconView(self,evt):
+        self.viewMenu.Check(self.listviewitem.GetId(), False)
+        self.viewMenu.Check(self.iconviewitem.GetId(), True)
+        self.viewModel = 'IconView'
+        if self.pak != None:
+            self.rootpanel.Destroy()
+            self.rootpanel = UnpackPanel(self, -1, self.viewModel)
+            self.sizer.Add(self.rootpanel, 1, wx.EXPAND)
+            self.Layout()
+            self.rootpanel.addressCb.SetLabel(self.dir)
+            self.rootpanel.addressCb.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
+            self.rootpanel.pakListCtrl.SetBaseFileList(self.getFilesFromDir(self.dir))
+            self.toolbar.EnableTool(self.toolunpack.GetId(), True)
 
 
     def getFilesFromDir(self,dir):
@@ -364,45 +411,53 @@ class PakBrowser(wx.Frame):
                         flag = False
                 if flag:
                     baseFileList.append(tbf)
+        if self.viewModel == "IconView":
+            baseFileList = self.pak.SetFileData(baseFileList)
         return baseFileList
+
+    def CreateTlBar(self):
+        self.toolbar = self.CreateToolBar(wx.TB_TEXT)
+        self.toolopen = self.toolbar.AddTool(-1, 'Open', wx.Bitmap(util.GetResourcePath('image/open_30.png')))
+        self.toolunpack = self.toolbar.AddTool(-1, 'UnPack', wx.Bitmap(util.GetResourcePath('image/unpack_30.png')))
+        self.toolpack = self.toolbar.AddTool(-1, 'Pack', wx.Bitmap(util.GetResourcePath('image/pack_30.png')))
+
+        self.toolbar.EnableTool(self.toolunpack.GetId(),False)
+        self.toolbar.Realize()
+        self.Bind(wx.EVT_TOOL, self.OnOpenFile, self.toolopen)
+        self.Bind(wx.EVT_TOOL, self.OnUnpackAll, self.toolunpack)
+        self.Bind(wx.EVT_TOOL, self.OnPack, self.toolpack)
 
     def CreateMenuBar(self):
         self.menubar = wx.MenuBar()
-        packMenu = wx.Menu()
-        opendiritem = packMenu.Append(-1, 'SelectSource','Open A Folder To Pack',kind=wx.ITEM_NORMAL)
-
-        unpackMenu = wx.Menu()
-        openfileitem = unpackMenu.Append(-1, 'OpenPak', 'Open A Pak File', kind=wx.ITEM_NORMAL)
-        unpackMenu.AppendSeparator()
-        self.unpackallitem = unpackMenu.Append(-1,'UnPackAll','Unpack Pak File')
-        self.unpackallitem.Enable(False)
-        unpackMenu.AppendSeparator()
-        self.unpackselecteditem = unpackMenu.Append(-1, 'UnpackSelected', 'Unpack Selected Files')
-        self.unpackselecteditem.Enable(False)
 
         settingMenu = wx.Menu()
-        setstarbounditem = settingMenu.Append(-1, 'StarboudFolder', 'Choose StarboudFolder', kind=wx.ITEM_NORMAL)
+        setstarbounditem = settingMenu.Append(-1, 'GameFolder', 'Choose StarboudFolder', kind=wx.ITEM_NORMAL)
+        #settingMenu.AppendSeparator()
+        #languageitem = settingMenu.Append(-1, 'Language', 'Choose Language', kind=wx.ITEM_NORMAL)
+
+        self.viewMenu = wx.Menu()
+        self.listviewitem = self.viewMenu.Append(-1, 'ListView','ListView Model', kind=wx.ITEM_CHECK)
+        self.iconviewitem = self.viewMenu.Append(-1, 'IconView', 'IconView Model', kind=wx.ITEM_CHECK)
+        self.viewMenu.Check(self.listviewitem.GetId(),True)
 
         helpMenu = wx.Menu()
         aboutitem = helpMenu.Append(-1, 'About','About This App Information',kind=wx.ITEM_NORMAL)
 
-        self.menubar.Append(unpackMenu, '&Unpack')
-        self.menubar.Append(packMenu, '&Pack')
-        self.menubar.Append(settingMenu, '&Settings')
+        self.menubar.Append(settingMenu, '&Setting')
+        self.menubar.Append(self.viewMenu, '&View')
         self.menubar.Append(helpMenu, '&Help')
 
-        self.Bind(wx.EVT_MENU, self.OnOpenFile, openfileitem)
-        self.Bind(wx.EVT_MENU, self.OnOpenDir, opendiritem)
-        self.Bind(wx.EVT_MENU, self.OnUnpackAll, self.unpackallitem)
-        self.Bind(wx.EVT_MENU, self.OnUnpackSelected, self.unpackselecteditem)
+        self.Bind(wx.EVT_MENU, self.ToggleListView, self.listviewitem)
+        self.Bind(wx.EVT_MENU, self.ToggleIconView, self.iconviewitem)
         self.Bind(wx.EVT_MENU, self.OnSetStarbound, setstarbounditem)
         self.Bind(wx.EVT_MENU, self.OnAboutBox, aboutitem)
         self.SetMenuBar(self.menubar)
 
+
     def OnAboutBox(self,evt):
         description = """Features:
-View the pak file and open the file without unpacking
-Unpack some or all of the pak files to the specified folder
+Open the pak file and view or open those compressed files
+Unpack selected or all of the compressed files to the specified folder
 Pack a folder to a starbound pak file
         """
 
@@ -410,7 +465,7 @@ Pack a folder to a starbound pak file
 
         info.SetIcon(wx.Icon(util.GetResourcePath('image/icon_128.ico'), wx.BITMAP_TYPE_ANY))
         info.SetName('StarPakBrower')
-        info.SetVersion('1.0')
+        info.SetVersion('1.1')
         info.SetDescription(description)
         info.SetCopyright('(C) 2018 - 2019 NNG')
         info.SetWebSite('https://github.com/nng68/StarPakBrowser')
@@ -420,19 +475,38 @@ Pack a folder to a starbound pak file
 
     def OnCloseWindow(self,evt):
         #删除临时文件
-        rootdir = util.GetResourcePath('temp')
-        filelist = os.listdir(rootdir)
-        for f in filelist:
-            filepath = os.path.join(rootdir, f)
-            if os.path.isfile(filepath):
-                os.remove(filepath)
-                print(str(filepath) + " removed!")
+        tempdir = util.GetResourcePath('temp')
+        if os.path.exists(tempdir):
+            filelist = os.listdir(tempdir)
+            for f in filelist:
+                filepath = os.path.join(tempdir, f)
+                if os.path.isfile(filepath):
+                    os.remove(filepath)
+                    print(str(filepath) + " removed!")
+                else:
+                    shutil.rmtree(filepath)
+                    print(str(filepath) + " removed!")
         self.Destroy()
+
+    def UpdateApp(self):
+        url_file = 'https://github.com/nng68/StarPakBrowser/releases/download/1.2/StarPakBrowser_win32.zip'
+        try:
+            r = requests.get(url_file, stream=True, timeout=3)
+            if r.status_code == 200:
+                dial = wx.MessageDialog(None,
+                                        'DownLoad: https://github.com/nng68/StarPakBrowser/releases\n(Ctrl C to Copy)',
+                                        'Update', wx.OK)
+                dial.ShowModal()
+                dial.Destroy()
+        except Exception as e:
+            print(e)
+            pass
+
 
 
 def main():
     app = wx.App(redirect=False,filename=util.GetResourcePath('log.txt'))
-    pb = PakBrowser(None, -1, 'StarPakBrowser')
+    PakBrowser(None, -1, 'StarPakBrowser')
     app.MainLoop()
 
 if __name__ == '__main__':
