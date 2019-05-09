@@ -7,7 +7,7 @@ This tool is built on top of @blixt's awesome work:[py-starbound](https://github
 Right click and select this app from folder,after that you can double-click the pak file to open it.  
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/pakopen1.png)
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/pakopen2.png)    
-* Right click on items unpack selected to the specified folder.  
+* Right click on items unpack selected items to the specified folder.  
 Double click the item to temporarily open the file  
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/rightclickpackselected.png)
 * Pack a folder to a starbound pak file.  
