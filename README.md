@@ -4,7 +4,7 @@ This tool is built on top of @blixt's awesome work:[py-starbound](https://github
 * [Download](https://github.com/nng68/StarPakBrowser/releases) and Install the release for the current version of StarPakBrowser.
 # Usage:
 * You can open the pak file directly by setting the way the pak file is opened.  
-Select this app from folder,after that you can double-click the pak file to open it.  
+Right click and select this app from folder,after that you can double-click the pak file to open it.  
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/pakopen1.png)
 ![](https://github.com/nng68/StarPakBrowser/blob/master/screenshots/pakopen2.png)    
 * Right click on items unpack selected to the specified folder.  
