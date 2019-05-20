@@ -2,6 +2,7 @@ import starbound
 import mmap
 import json
 import os
+import wx
 
 class PakUtil():
     def __init__(self,pakpath):
@@ -56,7 +57,7 @@ class PakUtil():
                     baseFile.data = data
         return baseFileList
 
-    def extractFiles(self,filelist,pathto):
+    def extractFiles(self,filelist,pathto,maingui):
         package_path = self.pakpath
         base = pathto
         with open(package_path, 'rb') as fh:
@@ -68,6 +69,7 @@ class PakUtil():
             for path in filelist:
                 self.extractfile = path
                 self.extractpercent = round((num_files / total_num_files)*100,2)
+                wx.CallAfter(maingui.updatedialog,self.extractpercent,False)
                 dest_path = base + path
                 dir_path = os.path.dirname(dest_path)
                 if not os.path.exists(dir_path):
@@ -85,3 +87,4 @@ class PakUtil():
                 num_files += 1
 
         self.extractpercent = 100
+        wx.CallAfter(maingui.updatedialog, self.extractpercent,True)

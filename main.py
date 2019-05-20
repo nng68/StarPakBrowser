@@ -6,7 +6,6 @@ import shutil
 import json
 import threading
 import util
-import time
 import requests
 from startpanel import StartPanel
 from unpackdialog import UnPackDialog
@@ -48,6 +47,7 @@ class PakBrowser(wx.Frame):
 
         path = util.GetOpenFilePath()
         if path != None:
+            self.SetTitle(path + ' - StarPakBrowser')
             pak = PakUtil(path)
             self.GotoUnpackPanel(pak)
 
@@ -112,7 +112,7 @@ class PakBrowser(wx.Frame):
                     print(e)
 
             self.packdialog = PackDialog(None, title='Select A Path To Pack')
-            self.packdialog.addressCb.SetLabel(directionpath)
+            self.packdialog.addressCb.SetValue(directionpath)
             self.packdialog.dir = directionpath
             self.packdialog.savedname.SetValue(filename)
             self.packdialog.btOk.Bind(wx.EVT_BUTTON,self.OnPackPak)
@@ -130,7 +130,7 @@ class PakBrowser(wx.Frame):
         self.sizer.Add(self.rootpanel, 1, wx.EXPAND)
         self.Layout()
         self.dir = '/'
-        self.rootpanel.addressCb.SetLabel(self.dir)
+        self.rootpanel.addressCb.SetValue(self.dir)
         self.rootpanel.addressCb.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
         self.rootpanel.pakListCtrl.SetBaseFileList(self.getFilesFromDir(self.dir))
         self.toolbar.EnableTool(self.toolunpack.GetId(), True)
@@ -144,7 +144,7 @@ class PakBrowser(wx.Frame):
                 for d in self.dir.split('/')[:-2]:
                     dir = dir + d + '/'
                 self.dir = dir
-            self.rootpanel.addressCb.SetLabel(self.dir)
+            self.rootpanel.addressCb.SetValue(self.dir)
             self.rootpanel.pakListCtrl.SetBaseFileList(self.getFilesFromDir(self.dir))
 
     def OnUnpackSelected(self,evt):
@@ -188,7 +188,7 @@ class PakBrowser(wx.Frame):
         else:
             extractpath = os.path.join(extractpath, self.pak.pakname[:-4])
 
-        self.unpackdialog.addressCb.SetLabel(extractpath)
+        self.unpackdialog.addressCb.SetValue(extractpath)
         self.unpackdialog.dir = extractpath
         self.unpackdialog.btOk.Bind(wx.EVT_BUTTON, self.OnUnpackPak)
         self.unpackdialog.ShowModal()
@@ -208,7 +208,7 @@ class PakBrowser(wx.Frame):
             extractpath = os.path.join(extractpath,self.pak.pakname[:-4])
 
         self.extractfilelist = self.pak.files
-        self.unpackdialog.addressCb.SetLabel(extractpath)
+        self.unpackdialog.addressCb.SetValue(extractpath)
         self.unpackdialog.dir = extractpath
         self.unpackdialog.btOk.Bind(wx.EVT_BUTTON,self.OnUnpackPak)
         self.unpackdialog.ShowModal()
@@ -232,8 +232,8 @@ class PakBrowser(wx.Frame):
 
         self.directionfile = os.path.join(self.packdialog.dir,savedname)
         self.flag = -1
-        threading.Thread(target=self.updatepackdialog).start()
         threading.Thread(target=self.packFiles).start()
+        threading.Thread(target=self.callupdatepackdialog).start()
 
     def packFiles(self):
         exe = os.path.join(self.stardir,'win32/asset_packer.exe')
@@ -241,29 +241,32 @@ class PakBrowser(wx.Frame):
         print(cmd)
         self.flag = os.system(cmd)
 
-    def updatepackdialog(self):
+    def callupdatepackdialog(self):
         srcsize = util.GetDirSize(self.srcpath)
         while True:
             if self.flag != -1:
                 break
             dirsize = util.GetFileSize(self.directionfile)
             percent = dirsize / srcsize
-            #粗略估计进度
             if percent > 1:
                 percent = 1
-            self.packdialog.percentlabel.SetLabel(str(round(percent*100, 2)) + '%')
-            self.packdialog.statusbar.SetValue(100*percent)
-            time.sleep(0.1)
+            wx.CallAfter(self.updatepackdialog,percent,False)
 
-        self.packdialog.percentlabel.SetLabel('100%')
-        self.packdialog.statusbar.SetValue(100)
-        if self.flag == 0:
-            dial = wx.MessageDialog(None, 'Pack completed', 'Info', wx.OK)
-        else:
-            dial = wx.MessageDialog(None, 'Pack Error', 'Info', wx.OK)
-        dial.ShowModal()
-        dial.Destroy()
-        self.packdialog.Destroy()
+        wx.CallAfter(self.updatepackdialog, 100, True)
+
+    def updatepackdialog(self,percent,flag):
+        self.packdialog.percentlabel.SetLabel(str(round(percent*100, 2)) + '%')
+        self.packdialog.statusbar.SetValue(100*percent)
+        if flag == True:
+            self.packdialog.percentlabel.SetLabel('100%')
+            self.packdialog.statusbar.SetValue(100)
+            if self.flag == 0:
+                dial = wx.MessageDialog(None, 'Pack completed', 'Info', wx.OK)
+            else:
+                dial = wx.MessageDialog(None, 'Pack Error', 'Info', wx.OK)
+            dial.ShowModal()
+            dial.Destroy()
+            self.packdialog.Destroy()
 
     def OnUnpackPak(self,evt):
         try:
@@ -271,7 +274,6 @@ class PakBrowser(wx.Frame):
             self.unpackdialog.btClose.Enable(False)
             self.unpackdialog.bt.Enable(False)
             threading.Thread(target=self.extractFiles).start()
-            threading.Thread(target=self.updatedialog).start()
         except Exception as e:
             dial = wx.MessageDialog(None, 'Unpack Error Please Check Your Starbound Folder', 'Info', wx.OK)
             dial.ShowModal()
@@ -279,22 +281,21 @@ class PakBrowser(wx.Frame):
             raise
 
     def extractFiles(self):
-        self.pak.extractFiles(self.extractfilelist, self.unpackdialog.dir)
+        self.pak.extractFiles(self.extractfilelist, self.unpackdialog.dir,self)
         self.extractfilelist = []
 
-    def updatedialog(self):
-        while self.pak.extractpercent != 100:
-            self.unpackdialog.percentlabel.SetLabel(str(round(self.pak.extractpercent,2)) + '%')
-            self.unpackdialog.statusbar.SetValue(self.pak.extractpercent)
-            time.sleep(0.1)
+    def updatedialog(self,percent,flag):
+        self.unpackdialog.percentlabel.SetLabel(str(round(percent,2)) + '%')
+        self.unpackdialog.statusbar.SetValue(percent)
 
-        self.unpackdialog.percentlabel.SetLabel('100%')
-        self.unpackdialog.statusbar.SetValue(100)
-        dial = wx.MessageDialog(None, 'Extract completed', 'Info', wx.OK)
-        dial.ShowModal()
-        dial.Destroy()
-        self.unpackdialog.Destroy()
-        self.pak.extractpercent = 0
+        if flag == True:
+            self.unpackdialog.percentlabel.SetLabel('100%')
+            self.unpackdialog.statusbar.SetValue(100)
+            dial = wx.MessageDialog(None, 'Extract completed', 'Info', wx.OK)
+            dial.ShowModal()
+            dial.Destroy()
+            self.unpackdialog.Destroy()
+            self.pak.extractpercent = 0
 
 
     def OnKeyUp(self,evt):
@@ -303,12 +304,12 @@ class PakBrowser(wx.Frame):
         if key == 13:
             baseFileList = self.getFilesFromDir(addr)
             if len(baseFileList) == 0:
-                self.rootpanel.addressCb.SetLabel(self.dir)
+                self.rootpanel.addressCb.SetValue(self.dir)
             else:
                 if addr[len(addr) - 1:len(addr)] != '/':
                     addr = addr + '/'
                 self.dir = addr
-                self.rootpanel.addressCb.SetLabel(self.dir)
+                self.rootpanel.addressCb.SetValue(self.dir)
                 self.rootpanel.pakListCtrl.SetBaseFileList(baseFileList)
 
 
@@ -319,7 +320,7 @@ class PakBrowser(wx.Frame):
         if baseFile.type == "folder":
             self.dir = baseFile.dir + baseFile.name + "/"
             baseFileList = self.getFilesFromDir(self.dir)
-            self.rootpanel.addressCb.SetLabel(self.dir)
+            self.rootpanel.addressCb.SetValue(self.dir)
             self.rootpanel.pakListCtrl.SetBaseFileList(baseFileList)
         else:
             filename = baseFile.dir + baseFile.name
@@ -361,7 +362,7 @@ class PakBrowser(wx.Frame):
             self.rootpanel = UnpackPanel(self, -1, self.viewModel)
             self.sizer.Add(self.rootpanel, 1, wx.EXPAND)
             self.Layout()
-            self.rootpanel.addressCb.SetLabel(self.dir)
+            self.rootpanel.addressCb.SetValue(self.dir)
             self.rootpanel.addressCb.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
             self.rootpanel.pakListCtrl.SetBaseFileList(self.getFilesFromDir(self.dir))
             self.toolbar.EnableTool(self.toolunpack.GetId(), True)
@@ -375,7 +376,7 @@ class PakBrowser(wx.Frame):
             self.rootpanel = UnpackPanel(self, -1, self.viewModel)
             self.sizer.Add(self.rootpanel, 1, wx.EXPAND)
             self.Layout()
-            self.rootpanel.addressCb.SetLabel(self.dir)
+            self.rootpanel.addressCb.SetValue(self.dir)
             self.rootpanel.addressCb.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
             self.rootpanel.pakListCtrl.SetBaseFileList(self.getFilesFromDir(self.dir))
             self.toolbar.EnableTool(self.toolunpack.GetId(), True)
@@ -493,14 +494,17 @@ Pack a folder to a starbound pak file
         try:
             r = requests.get(url_file, stream=True, timeout=3)
             if r.status_code == 200:
-                dial = wx.MessageDialog(None,
-                                        'DownLoad: https://github.com/nng68/StarPakBrowser/releases\n(Ctrl C to Copy)',
-                                        'Update', wx.OK)
-                dial.ShowModal()
-                dial.Destroy()
+                wx.CallAfter(self.PopUpdate)
         except Exception as e:
             print(e)
             pass
+
+    def PopUpdate(self):
+        dial = wx.MessageDialog(None,
+                                'DownLoad: https://github.com/nng68/StarPakBrowser/releases\n(Ctrl C to Copy)',
+                                'Update', wx.OK)
+        dial.ShowModal()
+        dial.Destroy()
 
 
 
