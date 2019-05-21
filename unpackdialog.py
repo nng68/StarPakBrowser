@@ -59,5 +59,5 @@ class UnPackDialog(wx.Dialog):
         dlg = wx.DirDialog(self, "Choose A Directory")
         if dlg.ShowModal() == wx.ID_OK:
             self.dir = dlg.GetPath()
-            self.addressCb.SetLabel(self.dir)
+            self.addressCb.SetValue(self.dir)
         dlg.Destroy()

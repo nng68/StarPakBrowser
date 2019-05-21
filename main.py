@@ -117,7 +117,6 @@ class PakBrowser(wx.Frame):
             self.packdialog.savedname.SetValue(filename)
             self.packdialog.btOk.Bind(wx.EVT_BUTTON,self.OnPackPak)
             self.packdialog.ShowModal()
-            self.packdialog.Destroy()
         dlg.Destroy()
 
 
@@ -192,7 +191,6 @@ class PakBrowser(wx.Frame):
         self.unpackdialog.dir = extractpath
         self.unpackdialog.btOk.Bind(wx.EVT_BUTTON, self.OnUnpackPak)
         self.unpackdialog.ShowModal()
-        self.unpackdialog.Destroy()
 
     def OnUnpackAll(self,evt):
         self.unpackdialog = UnPackDialog(None, title='Select A Path To Extract')
@@ -212,7 +210,6 @@ class PakBrowser(wx.Frame):
         self.unpackdialog.dir = extractpath
         self.unpackdialog.btOk.Bind(wx.EVT_BUTTON,self.OnUnpackPak)
         self.unpackdialog.ShowModal()
-        self.unpackdialog.Destroy()
 
     def OnPackPak(self,evt):
         self.packdialog.btOk.Enable(False)
@@ -252,7 +249,7 @@ class PakBrowser(wx.Frame):
                 percent = 1
             wx.CallAfter(self.updatepackdialog,percent,False)
 
-        wx.CallAfter(self.updatepackdialog, 100, True)
+        wx.CallAfter(self.updatepackdialog, 1, True)
 
     def updatepackdialog(self,percent,flag):
         self.packdialog.percentlabel.SetLabel(str(round(percent*100, 2)) + '%')
