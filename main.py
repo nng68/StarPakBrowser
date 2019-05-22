@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import json
+import time
 import threading
 import util
 import requests
@@ -248,6 +249,7 @@ class PakBrowser(wx.Frame):
             if percent > 1:
                 percent = 1
             wx.CallAfter(self.updatepackdialog,percent,False)
+            time.sleep(0.2)
 
         wx.CallAfter(self.updatepackdialog, 1, True)
 
@@ -260,7 +262,7 @@ class PakBrowser(wx.Frame):
             if self.flag == 0:
                 dial = wx.MessageDialog(None, 'Pack completed', 'Info', wx.OK)
             else:
-                dial = wx.MessageDialog(None, 'Pack Error', 'Info', wx.OK)
+                dial = wx.MessageDialog(None, 'Pack Error! Plase Set Your Starbound Folder Correctly', 'Info', wx.OK)
             dial.ShowModal()
             dial.Destroy()
             self.packdialog.Destroy()
